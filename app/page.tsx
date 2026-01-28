@@ -7,34 +7,44 @@ import WriteButton from './components/WriteButton';
 import WriteModal from './components/WriteModal';
 import { supabase } from './lib/supabase';
 
-interface Post {
-  id: number;
+// 데이터 모양을 정확히 정의합니다.
+interface PostWithProfile {
+  id: string;
   title: string;
   content: string;
   image_url: string;
-  date: string;
+  created_at: string;
+  profiles: {
+    nickname: string;
+  } | null;
 }
 
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [posts, setPosts] = useState<Post[]>([]);
+  // 바구니 타입을 PostWithProfile로 일치시켰습니다.
+  const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchPosts = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('posts')
-        .select('*')
-        .order('id', { ascending: false });
+    setLoading(true);
+    // profiles에서 nickname을 가져오는 쿼리입니다.
+    const { data, error } = await supabase
+      .from('posts')
+      .select(`
+        id, 
+        title, 
+        content, 
+        image_url, 
+        created_at,
+        profiles ( nickname )
+      `)
+      .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      if (data) setPosts(data);
-    } catch (error) {
-      console.error('Error fetching posts:', error);
-    } finally {
-      setLoading(false);
+    if (data) {
+      setPosts(data as any);
     }
+    if (error) console.error("데이터 로딩 실패:", error);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -45,23 +55,23 @@ export default function Home() {
     <main className="min-h-screen bg-[#F8F6F1] text-[#2C241D]">
       <Navigation />
       
-      {/* 컨테이너 상단 여백을 조절해서 사진이 더 위로 오게 만들었습니다. */}
       <div className="max-w-screen-xl mx-auto px-6 pt-10 pb-20">
-        
         {loading ? (
           <div className="text-center py-40 opacity-50 italic text-sm tracking-widest uppercase">
             Loading your moods...
           </div>
         ) : (
-          /* 그리드가 이제 페이지 최상단에서 시작합니다. */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-20">
             {posts.map((post) => (
               <PostCard 
                 key={post.id}
+                // nickname을 PostCard에 확실히 던져줍니다.
+                nickname={post.profiles?.nickname || '익명'}
                 title={post.title}
                 content={post.content}
                 imageUrl={post.image_url}
-                date={post.date}
+                // date 대신 created_at을 넘겨줍니다.
+                date={post.created_at}
               />
             ))}
           </div>
